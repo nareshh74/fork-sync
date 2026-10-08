@@ -7,6 +7,7 @@ on:
   schedule:
     - cron: '17 */4 * * *'
   workflow_dispatch:
+concurrency: sync-forks
 permissions: {}
 jobs:
   sync:
@@ -23,7 +24,7 @@ jobs:
             if out=$(gh api -X POST "repos/$repo/merge-upstream" -f branch="$branch" -q '.message' 2>&1); then
               echo "ok   $repo@$branch: $out"
             else
-              echo "::warning title=$repo::$branch: $out"; fail=1
+              echo "::warning title=$repo::$repo@$branch: $out"; fail=1
             fi
           done
           exit $fail
