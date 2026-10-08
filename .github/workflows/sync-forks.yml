@@ -1,0 +1,29 @@
+name: sync-forks
+# Merge each fork's upstream default branch into the fork every 4 hours.
+# merge-upstream fast-forwards, or adds a merge commit when the fork has its own
+# commits and there is no conflict. A conflict fails that repo only; the job then
+# exits non-zero so the failure shows in the Actions tab.
+on:
+  schedule:
+    - cron: '17 */4 * * *'
+  workflow_dispatch:
+permissions: {}
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync every fork
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          fail=0
+          for r in $(gh repo list "$OWNER" --fork --limit 500 --json nameWithOwner,defaultBranchRef -q '.[] | "\(.nameWithOwner):\(.defaultBranchRef.name)"'); do
+            repo=${r%%:*}; branch=${r##*:}
+            if out=$(gh api -X POST "repos/$repo/merge-upstream" -f branch="$branch" -q '.message' 2>&1); then
+              echo "ok   $repo@$branch: $out"
+            else
+              echo "::warning title=$repo::$branch: $out"; fail=1
+            fi
+          done
+          exit $fail
